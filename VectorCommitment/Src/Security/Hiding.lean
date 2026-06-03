@@ -2,7 +2,9 @@
 Copyright (c) 2026 LeanStuff contributors. All rights reserved.
 -/
 import VectorCommitment.Src.Trait
+import VectorCommitment.Src.Security.Params
 import Mathlib.Data.ENNReal.Basic
+import Mathlib.Probability.ProbabilityMassFunction.Basic
 
 /-!
 # Hiding — abstract security obligation
@@ -28,22 +30,19 @@ Model-specific instances live under:
   * `VectorCommitment/Properties/StandardModel/Instances/…`        (reserved)
 -/
 
-/-- Hiding obligation. -/
+open VectorCommitment.Security (SecParams)
+
+/-- Hiding obligation in experiment form (D1+D2+D5). Hiding is a *salt-space*
+    distinguishing notion: the error may name `s, ℓ, Q` from `Θ`, and the
+    instance precondition `s ≥ 1` keeps deterministic schemes out of scope. -/
 class HasHiding (V : Type) [VectorCommitment V] where
-  /-- The hiding-game adversary. The model's instance defines the
-      precise game shape (number of openings revealed, computational
-      model, etc.). -/
-  HidingAdversary : (κ q : ℕ) → Type
-  /-- The adversary's distinguishing advantage in the hiding game. -/
-  hidingAdvantage : ∀ {κ q}, HidingAdversary κ q → ENNReal
-  /-- The model-specific upper bound.
-      ROM Merkle with salt size `s`, message length `ℓ`, `Q` openings:
-        `ε_hide ≤ q · ℓ / 2 ^ s + Q² / 2 ^ s`
-        (oracle hits a salted-leaf input + revealed-salt collisions).
-      Standard-model under one-way `H`: `Adv_H^OW(B)` for some reduction
-      `B`. -/
-  hidingError : (κ q : ℕ) → ENNReal
-  /-- The central guarantee. -/
+  HidingAdversary : SecParams → Type
+  /-- The bit-guessing hiding experiment: distribution of the indicator
+      `b' = b`. Advantage `= (hidingExperiment A) true = Pr[b' = b]`. -/
+  hidingExperiment : ∀ {Θ : SecParams}, HidingAdversary Θ → PMF Bool
+  /-- Salt-space upper bound; ROM Merkle: `Θ.ell*Θ.q/2^Θ.s + Θ.Q^2/2^Θ.s`. -/
+  hidingError : SecParams → ENNReal
+  /-- Distinguishing guarantee: `Pr[b' = b] ≤ 1/2 + hidingError Θ`. -/
   hiding_bound :
-    ∀ {κ q} (A : HidingAdversary κ q),
-      hidingAdvantage A ≤ hidingError κ q
+    ∀ {Θ : SecParams} (A : HidingAdversary Θ),
+      (hidingExperiment A) true ≤ 1 / 2 + hidingError Θ

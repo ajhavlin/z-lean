@@ -2,7 +2,9 @@
 Copyright (c) 2026 LeanStuff contributors. All rights reserved.
 -/
 import VectorCommitment.Src.Trait
+import VectorCommitment.Src.Security.Params
 import Mathlib.Data.ENNReal.Basic
+import Mathlib.Probability.ProbabilityMassFunction.Basic
 
 /-!
 # Straightline extractability — abstract security obligation
@@ -29,28 +31,19 @@ Model-specific instances live under:
   * `VectorCommitment/Properties/StandardModel/Instances/…`            (reserved)
 -/
 
-/-- Straightline extractability obligation. Game parameters as in
-    `HasPositionBinding`. -/
+open VectorCommitment.Security (SecParams)
+
+/-- Straightline extractability obligation in experiment form (D3+D5).
+    A *search* game (baseline 0): the bound is on the failure probability. -/
 class HasStraightlineExtractor (V : Type) [VectorCommitment V] where
-  /-- The extraction-game adversary. The model's instance defines what
-      "extraction failure" means concretely: typically, the adversary
-      produces an accepting opening at some index whose revealed value
-      differs from what the model's straightline extractor outputs from
-      the trace. -/
-  ExtractionAdversary : (κ q : ℕ) → Type
-  /-- The probability that running `A` under the model's randomness
-      yields a successful break of the extractor: an accepting opening
-      whose value disagrees with the extractor's claim about that
-      position. -/
-  extractionFailureAdvantage : ∀ {κ q}, ExtractionAdversary κ q → ENNReal
-  /-- The model-specific upper bound.
-      ROM Merkle: `q * (q - 1) / 2 ^ (κ + 1)` — same collision bound as
-        binding, since absent any RO collision the root pins down a unique
-        tree and hence a unique `m̃`.
-      Standard-model: a reduction-based bound to a knowledge or one-way
-        assumption (no straightline form in general). -/
-  extractionError : (κ q : ℕ) → ENNReal
-  /-- The central guarantee. -/
+  ExtractionAdversary : SecParams → Type
+  /-- The extraction-failure experiment: distribution of the indicator
+      "`A` produced an accepting opening whose value disagrees with the
+      straightline (cache) extractor's output". -/
+  extractionExperiment : ∀ {Θ : SecParams}, ExtractionAdversary Θ → PMF Bool
+  /-- Upper bound; ROM Merkle: `Θ.q*(Θ.q-1)/2^(Θ.kappa+1)` (collision). -/
+  extractionError : SecParams → ENNReal
+  /-- The central guarantee: `Pr[extraction fails] ≤ extractionError Θ`. -/
   extraction_bound :
-    ∀ {κ q} (A : ExtractionAdversary κ q),
-      extractionFailureAdvantage A ≤ extractionError κ q
+    ∀ {Θ : SecParams} (A : ExtractionAdversary Θ),
+      (extractionExperiment A) true ≤ extractionError Θ

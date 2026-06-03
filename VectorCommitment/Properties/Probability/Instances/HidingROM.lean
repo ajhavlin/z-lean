@@ -13,23 +13,22 @@ import VectorCommitment.Properties.Theorems.Hiding
 Discharges `HasHiding (MerkleCommitment (ROHasherValue κ) S)` for every
 digest length `κ` and Merkle shape `S`, in the random-oracle model.
 
-## Bound
+## Intended bound
 
 The classical RO-hiding error for a Merkle commitment with salt size
 `s` and message length `ℓ`, against an adversary making `q` RO queries
 and observing `Q` openings:
 
-    ε_hide ≤ q · ℓ / 2^s + Q² / 2^s
+    ε_hide ≤ q · ℓ / |Salt| + Q² / |Salt|
 
 The first term: probability the adversary's `q` RO queries hit any
-salted-leaf input (each with probability `2^(-s)` per leaf). The second
-term: probability of a collision among the `Q` revealed salts.
+salted-leaf input. The second term: probability of a collision among
+the revealed salts.
 
-For the current instance we use a coarse upper bound that suffices for
-the IOPP compilation: `ε_hide ≤ Probability.collisionBound s q`. A
-tighter `s`/`ℓ`-aware version is straightforward once the salt-size
-parameter is threaded through (see `MerkleHasher.Salt` machinery
-documented in `VectorCommitment/HIDING.md`).
+The fields below still use the digest-length collision placeholder.
+Phase B must thread the salt-space parameter through the experiment
+before closing this instance; otherwise the Lean theorem would not match
+the VC security notes.
 
 ## Reduction sketch
 
@@ -65,10 +64,13 @@ variable (κ : Nat) (S : Type) [MerkleShape S]
 /-- Hiding for the RO-derived Merkle commitment. -/
 noncomputable instance :
     HasHiding (MerkleCommitment (ROHasher.ROHasherValue κ) S) where
-  HidingAdversary := fun _ _ =>
+  HidingAdversary := fun _ =>
     OracleComp (ROHasher.MerkleROSpec κ) Bool
-  hidingAdvantage := sorry
-  hidingError := fun _ q => Probability.collisionBound κ q
+  -- TODO(M4): bit-guessing experiment with per-leaf salts; pending.
+  hidingExperiment := sorry
+  -- D2: salt-space bound `(ℓ·q + Q²)/2^s`, naming the hiding parameters.
+  hidingError := fun Θ =>
+    ((Θ.ell * Θ.q + Θ.Q * Θ.Q : ℕ) : ENNReal) / (2 : ENNReal) ^ Θ.s
   hiding_bound := sorry
 
 end VectorCommitment.Probability.Instances

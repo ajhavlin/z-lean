@@ -12,7 +12,9 @@ import VectorCommitment.Properties.Theorems.Extractability
 
 Discharges `HasStraightlineExtractor (MerkleCommitment (ROHasherValue κ) S)`
 for every digest length `κ` and Merkle shape `S`, in the random-oracle
-model.
+model. This is the classical ROM/query-trace notion from the VC security
+notes. Merkle does not provide a setup trapdoor extractor; the extractor
+recovers what it can from the adversary's oracle query log.
 
 ## What straightline extractability adds over binding
 
@@ -27,6 +29,10 @@ walk the cache to find the query whose response is the root, recurse on
 its children, and so on. Any subtree the prover never queried becomes
 "⊥", and the prover cannot open into it without finding a hash
 collision.
+
+Phase B should make this extractor an explicit definition before
+instantiating `HasStraightlineExtractor`; otherwise the bound has no
+auditable experiment to refer to.
 
 ## Reduction sketch
 
@@ -62,14 +68,15 @@ variable (κ : Nat) (S : Type) [MerkleShape S]
 /-- Straightline extractability for the RO-derived Merkle commitment. -/
 noncomputable instance :
     HasStraightlineExtractor (MerkleCommitment (ROHasher.ROHasherValue κ) S) where
-  ExtractionAdversary := fun _ _ =>
+  ExtractionAdversary := fun _ =>
     OracleComp (ROHasher.MerkleROSpec κ)
       (VectorCommitment.Commitment (MerkleCommitment (ROHasher.ROHasherValue κ) S) ×
        List (VectorCommitment.Index (MerkleCommitment (ROHasher.ROHasherValue κ) S)) ×
        List (VectorCommitment.Alphabet (MerkleCommitment (ROHasher.ROHasherValue κ) S)) ×
        VectorCommitment.Proof (MerkleCommitment (ROHasher.ROHasherValue κ) S))
-  extractionFailureAdvantage := sorry
-  extractionError := fun _ q => Probability.collisionBound κ q
+  -- TODO(M5): define `CacheExtract` + this experiment; pending.
+  extractionExperiment := sorry
+  extractionError := fun Θ => Probability.collisionBound κ Θ.q
   extraction_bound := sorry
 
 end VectorCommitment.Probability.Instances

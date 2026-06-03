@@ -11,7 +11,13 @@ import VectorCommitment.Properties.Theorems.Equivocation
 # ROM instance: equivocation for RO-derived Merkle commitments
 
 Discharges `HasEquivocation (MerkleCommitment (ROHasherValue κ) S)` in
-the *programmable* random-oracle model.
+the *programmable* classical random-oracle model.
+
+This file is not a trapdoor-equivocable VC proof. It is the simulator
+side of the usual ROM zero-knowledge argument: the simulator may program
+oracle values that the adversary has not already queried. In the
+standard model, and in a non-programmable ROM statement, ordinary Merkle
+commitments should not receive an equivocation instance.
 
 ## What this instance asserts
 
@@ -34,9 +40,9 @@ the simulator wants to program. The second is salt freshness.
 
 ## Status
 
-This is the lone substantive `sorry` in `Properties/Theorems/Equivocation.lean`
-(the legacy statement returns `True`). Closing the ROM instance here
-requires *first* extending the lazy-sampling RO model in
+The legacy theorem in `Properties/Theorems/Equivocation.lean` currently
+has no probabilistic content. Closing the ROM instance here requires
+*first* extending the lazy-sampling RO model in
 `Properties/Probability/RandomOracle.lean` with a **programmable**
 variant — an `OracleComp` operation that pre-populates entries in
 `QueryLog` before sampling continues from there. The skeleton is
@@ -66,10 +72,9 @@ This is the hardest of the four ROM instances. It depends on:
 * **The simulator construction** itself, plus the coupling argument
   showing real ≈ ideal.
 
-* **Replacing the legacy `mt_equivocation := sorry`** in
+* **Replacing the legacy `mt_equivocation` placeholder** in
   `Properties/Theorems/Equivocation.lean` with a real distributional
-  statement — currently it returns `True`, which has no probabilistic
-  content.
+  statement.
 -/
 
 namespace VectorCommitment.Probability.Instances
@@ -79,11 +84,12 @@ variable (κ : Nat) (S : Type) [MerkleShape S]
 
 /-- Equivocation for the RO-derived Merkle commitment. -/
 noncomputable instance :
-    HasEquivocation (MerkleCommitment (ROHasher.ROHasherValue κ) S) where
-  EquivocationAdversary := fun _ _ =>
+    HasSimulationEquivocation (MerkleCommitment (ROHasher.ROHasherValue κ) S) where
+  SimAdversary := fun _ =>
     OracleComp (ROHasher.MerkleROSpec κ) Bool
-  equivocationAdvantage := sorry
-  equivocationError := fun _ q => Probability.collisionBound κ q
-  equivocation_bound := sorry
+  -- TODO(M6): programmable-RO simulator + coupling lemma; pending.
+  simExperiment := sorry
+  simError := fun Θ => Probability.collisionBound κ Θ.q
+  sim_bound := sorry
 
 end VectorCommitment.Probability.Instances

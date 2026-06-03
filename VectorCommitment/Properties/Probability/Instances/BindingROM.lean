@@ -12,7 +12,14 @@ import VectorCommitment.Properties.Theorems.Binding
 
 Discharges `HasPositionBinding (MerkleCommitment (ROHasherValue κ) S)`
 for every digest length `κ` and Merkle shape `S`, in the random-oracle
-model.
+model. This is a classical ROM statement: the proof uses lazy sampling,
+query logs, and collision events. It is not a QROM argument.
+
+The VC security notes target the strong binding game where the adversary
+may choose the commitment and wins by producing two accepting openings
+to different values. The Lean instance below is currently a proof
+scaffold for that target; Phase B should define the experiment before
+closing the class fields.
 
 ## Reduction sketch
 
@@ -30,9 +37,9 @@ The bound `q · (q - 1) / 2^(κ + 1)` is derived in three steps:
    `Function.Injective2 hashLeaf` and `Function.Injective hashNodes`,
    no two distinct accepting openings of the same position exist.
 
-The two `sorry`s below — `bindingAdvantage` and `binding_bound` —
-implement this reduction; closing them (modulo `birthdayBound`) gives
-a complete ROM proof of position binding.
+The deferred fields below — `bindingAdvantage` and `binding_bound` —
+are the Phase B proof obligations. Closing them, together with
+`birthdayBound`, gives the ROM proof of position binding.
 
 ## Open work for the student
 
@@ -66,11 +73,13 @@ variable (κ : Nat) (S : Type) [MerkleShape S]
 /-- Position binding for the RO-derived Merkle commitment. -/
 noncomputable instance :
     HasPositionBinding (MerkleCommitment (ROHasher.ROHasherValue κ) S) where
-  BindingAdversary := fun _ _ =>
+  BindingAdversary := fun _ =>
     OracleComp (ROHasher.MerkleROSpec κ)
       (BindingBreak (MerkleCommitment (ROHasher.ROHasherValue κ) S))
-  bindingAdvantage := sorry
-  bindingError := fun _ q => Probability.collisionBound κ q
+  -- TODO(M3): define via `ROHasher.checkOracle` (Verify^H); currently the
+  -- experiment is unwired pending the trace↔iid coupling lemma (M2).
+  bindingExperiment := sorry
+  bindingError := fun Θ => Probability.collisionBound κ Θ.q
   binding_bound := sorry
 
 end VectorCommitment.Probability.Instances

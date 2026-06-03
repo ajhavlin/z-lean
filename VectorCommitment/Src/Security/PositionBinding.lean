@@ -2,7 +2,9 @@
 Copyright (c) 2026 LeanStuff contributors. All rights reserved.
 -/
 import VectorCommitment.Src.Trait
+import VectorCommitment.Src.Security.Params
 import Mathlib.Data.ENNReal.Basic
+import Mathlib.Probability.ProbabilityMassFunction.Basic
 
 /-!
 # Position binding — abstract security obligation
@@ -60,40 +62,33 @@ def BindingBreak.IsValid {V : Type} [VectorCommitment V]
 
 end VectorCommitment.Security
 
-/-- Position-binding obligation, layered on top of the operational
-    `VectorCommitment` interface.
+open VectorCommitment.Security (SecParams)
 
-    Game parameters:
-      * `κ` — security parameter (digest length in the ROM, group
-              order / hash output length in the standard model).
-      * `q` — adversary resource budget (RO queries in the ROM,
-              runtime bound in the standard model).
+/-- Position-binding obligation in **experiment form** (decisions D1+D5,
+    spec §0.1–§0.2, §2.1).
 
-    An `instance` for a concrete commitment type `V` under a chosen
-    security model discharges the four fields below. -/
+    The advantage is *pinned* to an explicit experiment `bindingExperiment`
+    returning the distribution of the win-bit: it is never a free field an
+    instance could set to `0`. The experiment is run over the parameter
+    tuple `Θ = (λ,κ,s,ℓ,Q,q)`; for a transparent-setup ROM scheme it samples
+    the shared oracle `H` and runs `Verify^H` against the *same* `H` the
+    adversary queries (so the winning event cannot be decoupled from `H`).
+
+    An `instance` for a concrete commitment type `V` under a chosen security
+    model discharges the four fields below. -/
 class HasPositionBinding (V : Type) [VectorCommitment V] where
-  /-- The adversary type at security parameter `κ` and resource
-      budget `q`.
-
-      Each model picks this concretely:
-        * ROM: `OracleComp spec (BindingBreak V)` for the RO spec.
-        * Standard model: a runtime-bounded reduction returning a
-          `BindingBreak V` together with a witness to the assumption
-          break it forces. -/
-  BindingAdversary : (κ q : ℕ) → Type
-  /-- The probability that running `A` yields a *valid* break, taken
-      over `A`'s own coins together with any randomness the model
-      supplies (lazy oracle samples in the ROM, assumption-game coins
-      in the standard model). -/
-  bindingAdvantage : ∀ {κ q}, BindingAdversary κ q → ENNReal
-  /-- The model-specific upper bound on `bindingAdvantage`.
-
-      Examples:
-        * ROM Merkle:        `q * (q - 1) / 2 ^ (κ + 1)`  (birthday).
-        * Standard-model CR: `Adv_H^CR(B)` for some reduction `B`. -/
-  bindingError : (κ q : ℕ) → ENNReal
-  /-- The central guarantee: every adversary's advantage is at most
-      the model-specific error term. -/
+  /-- The adversary type at parameters `Θ`. ROM: an `OracleComp` over the
+      RO spec returning a `BindingBreak V`; standard model: a runtime-bounded
+      reduction to an assumption. -/
+  BindingAdversary : SecParams → Type
+  /-- The binding **experiment**: the distribution of the Boolean win-bit
+      when `A` is run against the model's sampled oracle and its `Verify^H`.
+      The advantage is `bindingExperiment A true = Pr[A wins]`. -/
+  bindingExperiment : ∀ {Θ : SecParams}, BindingAdversary Θ → PMF Bool
+  /-- The model-specific upper bound; may depend on any component of `Θ`.
+      ROM Merkle: `q * (q - 1) / 2 ^ (κ + 1)` (birthday). -/
+  bindingError : SecParams → ENNReal
+  /-- The central guarantee: `Pr[A wins] ≤ bindingError Θ`. -/
   binding_bound :
-    ∀ {κ q} (A : BindingAdversary κ q),
-      bindingAdvantage A ≤ bindingError κ q
+    ∀ {Θ : SecParams} (A : BindingAdversary Θ),
+      (bindingExperiment A) true ≤ bindingError Θ
