@@ -5,6 +5,7 @@ import VectorCommitment.Src.Security.PositionBinding
 import VectorCommitment.Src.Merkle.Instance
 import VectorCommitment.Properties.Probability.ROHasher
 import VectorCommitment.Properties.Probability.Collision
+import VectorCommitment.Properties.Probability.CheckOracle
 import VectorCommitment.Properties.Theorems.Binding
 
 /-!
@@ -66,6 +67,7 @@ are the Phase B proof obligations. Closing them, together with
 namespace VectorCommitment.Probability.Instances
 
 open VectorCommitment.Security
+open scoped Classical
 
 variable (κ : Nat) (S : Type) [MerkleShape S]
   [Nonempty (MerkleCommitment (ROHasher.ROHasherValue κ) S)]
@@ -76,9 +78,15 @@ noncomputable instance :
   BindingAdversary := fun _ =>
     OracleComp (ROHasher.MerkleROSpec κ)
       (BindingBreak (MerkleCommitment (ROHasher.ROHasherValue κ) S))
-  -- TODO(M3): define via `ROHasher.checkOracle` (Verify^H); currently the
-  -- experiment is unwired pending the trace↔iid coupling lemma (M2).
-  bindingExperiment := sorry
+  -- D1/D5: run the adversary and validate its break with `checkOracle`
+  -- (Verify^H) against the SAME sampled oracle. `Θ.ell` = number of leaves.
+  bindingExperiment := fun {Θ} A => OracleComp.simulateQ (do
+    let b ← A
+    let r₀ ← ROHasher.checkOracle Θ.ell b.commitment.root
+      { indices := [b.index], values := [b.value₀] } b.proof₀
+    let r₁ ← ROHasher.checkOracle Θ.ell b.commitment.root
+      { indices := [b.index], values := [b.value₁] } b.proof₁
+    pure (decide (b.value₀ ≠ b.value₁) && r₀ && r₁))
   bindingError := fun Θ => Probability.collisionBound κ Θ.q
   binding_bound := sorry
 
